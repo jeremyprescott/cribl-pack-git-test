@@ -1,0 +1,45 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send PATCH request
+        env:
+          API_URL: ${{ secrets.THIRD_PARTY_URL }}      # e.g. https://api.vendor.com/hooks/abc123
+          API_TOKEN: ${{ secrets.THIRD_PARTY_TOKEN }}  # if your API needs a bearer/API key
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::error:: Missing secret THIRD_PARTY_URL"; exit 1
+          fi
+          # Perform the request, capture body+status separately for robust error handling
+          http_code=$(curl -sS -X PATCH "$API_URL" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $API_TOKEN" \
+            --data-raw '{"source":"git+https://github.com/jeremyprescott/cribl-pack-git-test.git","spec":"main"}' \
+            --connect-timeout 5 \
+            --max-time 20 \
+            --retry 3 \
+            --retry-delay 3 \
+            --retry-connrefused \
+            -w "%{http_code}" -o response.json)
+
+          echo "Response body:"
+          cat response.json || true
+          echo "HTTP status: $http_code"
+
+          # Fail the job on non-2xx
+          case "$http_code" in
+            2*) echo "Request succeeded." ;;
+            *)  echo "::error:: PATCH $API_URL failed with HTTP $http_code"; exit 1 ;;
+          esac
