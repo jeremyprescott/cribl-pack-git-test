@@ -2,5 +2,9 @@ output: default
 streamtags: []
 groups: {}
 asyncFuncTimeout: 1000
-functions: []
+functions:
+  - id: eval
+    filter: "true"
+    disabled: null
+    conf: {}
 description: ""
